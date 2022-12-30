@@ -24,15 +24,4 @@ export class UserPrismaRepository implements IUserRepositoryPort {
       },
     });
   }
-
-  async findPasswordUsingParams(
-    searchParams: IFindUserPasswordParamsIn
-  ): Promise<Pick<IUserRepositoryPortOut, "password"> | null> {
-    return prismaClient.users.findUnique({
-      where: searchParams,
-      select: {
-        password: true,
-      },
-    });
-  }
 }
