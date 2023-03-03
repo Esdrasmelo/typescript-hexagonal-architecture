@@ -1,6 +1,5 @@
-import { excludeFields } from "../../../utils";
 import { ResourceNotFound } from "../../exceptions";
-import { IUserRepositoryPort, IUserRepositoryPortOut } from "../../ports";
+import { IUserRepositoryPort } from "../../ports";
 import {
   HttpResponse,
   notFoundResponse,
