@@ -1,75 +1,55 @@
-import express, { Express, Request, Response, Router } from "express";
-import { userRouter, authRouter } from "./routes";
-import { AuthService } from "../../../../services/auth/Auth";
-import { IUserExpressRequest } from "./interfaces";
-import { unauthorizedRequestResponse } from "../../../../core";
+import express, { Express, RequestHandler } from "express";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import { ITokenServicePort } from "../../../../core/ports";
+import { Env } from "../../../config/env";
+import { AuthController, UserController } from "./controllers";
 import {
-  BadJwtTokenFormat,
-  TokenNotProvided,
-} from "../../../../services/exceptions";
+  errorHandler,
+  makeAuthMiddleware,
+  notFoundHandler,
+} from "./middlewares";
+import { makeAuthRouter, makeHealthRouter, makeUserRouter } from "./routes";
 
-export class ExpressServer {
-  private appPort: number;
-  private app: Express = express();
+const MAX_REQUEST_BODY_SIZE = "16kb";
+const MINUTE_IN_MILLISECONDS = 60 * 1000;
 
-  constructor(port: number) {
-    this.appPort = port;
-  }
-
-  private StoreUserInExpressRequest(
-    userData: IUserExpressRequest,
-    request: Request
-  ) {
-    request.user = userData;
-  }
-
-  private ValidateRequestsMiddleware(request: Request, response: Response) {
-    let token = request.headers["authorization"];
-
-    if (!token) {
-      const { statusCode, body } = unauthorizedRequestResponse(
-        new TokenNotProvided()
-      );
-      return response.status(statusCode).json(body);
-    }
-
-    const getBearerString = token.includes("Bearer");
-
-    if (!getBearerString) {
-      const { statusCode, body } = unauthorizedRequestResponse(
-        new BadJwtTokenFormat()
-      );
-      return response.status(statusCode).json(body);
-    }
-
-    const validateToken = AuthService.ValidateJwtToken(token);
-
-    if (typeof validateToken !== "string") {
-      if (validateToken.statusCode)
-        return response
-          .status(validateToken.statusCode)
-          .json(validateToken.body);
-
-      const { email, id }: IUserExpressRequest = validateToken as any;
-
-      this.StoreUserInExpressRequest({ email, id }, request);
-    }
-  }
-
-  async server() {
-    this.app.use(express.json());
-
-    this.app.use((request, response, next) => {
-      if (!request.url.includes("login"))
-        this.ValidateRequestsMiddleware(request, response);
-
-      next();
-    });
-
-    this.app.use("/", [userRouter, authRouter]);
-
-    this.app.listen(this.appPort, () => {
-      console.log(`Server is running at http://localhost:${this.appPort}`);
-    });
-  }
+export interface IServerDependencies {
+  env: Env;
+  tokenService: ITokenServicePort;
+  userController: UserController;
+  authController: AuthController;
 }
+
+const makeLoginRateLimiter = (env: Env): RequestHandler =>
+  rateLimit({
+    windowMs: env.LOGIN_RATE_LIMIT_WINDOW_MINUTES * MINUTE_IN_MILLISECONDS,
+    limit: env.LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: {
+      error: {
+        code: "TOO_MANY_REQUESTS",
+        message: "Tentativas de login em excesso. Tente novamente mais tarde.",
+      },
+    },
+  });
+
+export const createApp = (deps: IServerDependencies): Express => {
+  const app = express();
+
+  app.disable("x-powered-by");
+  app.use(helmet());
+  app.use(express.json({ limit: MAX_REQUEST_BODY_SIZE }));
+
+  app.use(makeHealthRouter());
+  app.use(
+    makeUserRouter(deps.userController, makeAuthMiddleware(deps.tokenService))
+  );
+  app.use(makeAuthRouter(deps.authController, makeLoginRateLimiter(deps.env)));
+
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+
+  return app;
+};

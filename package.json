@@ -1,24 +1,37 @@
 {
   "name": "typescript-hexagonal-architecture",
-  "version": "1.0.0",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "API de exemplo em TypeScript demonstrando Arquitetura Hexagonal (ports & adapters)",
   "license": "MIT",
-  "scripts": {
-    "dev": "nodemon --watch 'src/' --exec 'ts-node src/app.ts' -e ts"
+  "main": "dist/main.js",
+  "engines": {
+    "node": ">=22"
   },
-  "devDependencies": {
-    "@prisma/client": "^4.8.0",
-    "@types/express": "^4.17.15",
-    "@types/jsonwebtoken": "^9.0.0",
-    "@types/node": "^18.11.17",
-    "nodemon": "^2.0.20",
-    "typescript": "^4.9.4"
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
+    "test:watch": "node --import tsx --test --watch \"tests/**/*.test.ts\""
   },
   "dependencies": {
-    "dotenv": "^16.0.3",
-    "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.0",
-    "prisma": "^4.8.0",
-    "ts-node": "^10.9.1"
+    "@prisma/client": "^6.2.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.5",
+    "prisma": "^6.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
   }
 }

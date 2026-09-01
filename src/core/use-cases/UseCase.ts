@@ -1,5 +1,7 @@
-import { HttpResponse } from "../protocols/http-response";
+export interface IUseCase<TInput, TOutput> {
+  Execute(input: TInput): Promise<TOutput>;
+}
 
-export interface IUseCase {
-    Execute: (data: any) => Promise<HttpResponse>;
+export interface IUseCaseWithoutInput<TOutput> {
+  Execute(): Promise<TOutput>;
 }

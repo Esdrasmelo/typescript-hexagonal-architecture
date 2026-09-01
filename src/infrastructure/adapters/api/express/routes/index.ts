@@ -1,2 +1,3 @@
-export * from "./UserRoutes";
-export * from "./AuthRoutes";
+export * from "./userRoutes";
+export * from "./authRoutes";
+export * from "./healthRoutes";

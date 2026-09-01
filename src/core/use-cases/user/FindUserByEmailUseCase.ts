@@ -1,25 +1,16 @@
-import { excludeFields } from "../../../utils";
+import { Email, UserEntity } from "../../entities";
 import { ResourceNotFound } from "../../exceptions";
-import { IUserRepositoryPort, IUserRepositoryPortOut } from "../../ports";
-import {
-  HttpResponse,
-  notFoundResponse,
-  okResponse,
-} from "../../protocols/http-response";
+import { IUserRepositoryPort } from "../../ports";
 import { IUseCase } from "../UseCase";
 
-export class FindUserByEmailUseCase implements IUseCase {
-  private userRepository: IUserRepositoryPort;
+export class FindUserByEmailUseCase implements IUseCase<unknown, UserEntity> {
+  constructor(private readonly userRepository: IUserRepositoryPort) {}
 
-  constructor(userRepository: IUserRepositoryPort) {
-    this.userRepository = userRepository;
-  }
+  public async Execute(email: unknown): Promise<UserEntity> {
+    const user = await this.userRepository.findByEmail(Email.Create(email));
 
-  async Execute(email: string): Promise<HttpResponse> {
-    const user = await this.userRepository.findByEmail(email);
+    if (!user) throw new ResourceNotFound("Usuário");
 
-    if (!user) return notFoundResponse(new ResourceNotFound("User"));
-
-    return okResponse(user);
+    return user;
   }
 }

@@ -1,3 +1,3 @@
 export * from "./CreateUserUseCase";
-export * from "./FindUserByEmailUseCase";
 export * from "./FindAllUsersUseCase";
+export * from "./FindUserByEmailUseCase";
