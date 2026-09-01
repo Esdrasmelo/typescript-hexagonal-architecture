@@ -1,23 +1,31 @@
-import { Router } from "express";
-import { userControllerMount } from "../../../controllers/mount/";
+import { RequestHandler, Router } from "express";
+import { UserController } from "../controllers";
+import { asyncHandler } from "../middlewares";
 
-export const userRouter = Router();
+export const makeUserRouter = (
+  controller: UserController,
+  authMiddleware: RequestHandler
+): Router => {
+  const router = Router();
 
-const userController = userControllerMount();
+  router.post(
+    "/users",
+    asyncHandler(async (request, response) => {
+      const { statusCode, body } = await controller.CreateUser(request.body);
 
-userRouter.post("/users/create", async (request, response) => {
-  const userData = request.body;
-  const { statusCode, body } = await userController.CreateUser(userData);
+      response.status(statusCode).json(body);
+    })
+  );
 
-  return response.status(statusCode).json(body);
-});
+  router.get(
+    "/users",
+    authMiddleware,
+    asyncHandler(async (request, response) => {
+      const { statusCode, body } = await controller.GetUsers(request.query);
 
-userRouter.get("/users", async (request, response) => {
-  const { email } = request.query;
+      response.status(statusCode).json(body);
+    })
+  );
 
-  const { statusCode, body } = email
-    ? await userController.GetUserByEmail(email as string)
-    : await userController.GetUsers();
-
-  return response.status(statusCode).json(body);
-});
+  return router;
+};

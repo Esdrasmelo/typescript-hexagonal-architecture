@@ -1,39 +1,49 @@
+import { Email, PlainPassword, UserEntity } from "../../entities";
+import { DataAlreadyExists } from "../../exceptions";
 import {
-  HttpResponse,
-  badRequestResponse,
-  createdResponse,
-  okResponse,
-} from "../../protocols/http-response";
+  IClockPort,
+  IIdGeneratorPort,
+  IPasswordHasherPort,
+  IUserRepositoryPort,
+} from "../../ports";
 import { IUseCase } from "../UseCase";
-import { IUserPayloadIn } from "../in/UserPayloadIn";
-import { IUserRepositoryPort } from "../../ports";
-import { UserEntity } from "../../entities";
-import {
-  DataAlreadyExists,
-  ResourceWasNotAbleToBeCreated,
-} from "../../exceptions";
 
-export class CreateUserUseCase implements IUseCase {
-  private userRepository: IUserRepositoryPort;
+export interface ICreateUserInput {
+  name: unknown;
+  email: unknown;
+  password: unknown;
+}
 
-  constructor(userRepository: IUserRepositoryPort) {
-    this.userRepository = userRepository;
+export class CreateUserUseCase
+  implements IUseCase<ICreateUserInput, UserEntity>
+{
+  constructor(
+    private readonly userRepository: IUserRepositoryPort,
+    private readonly passwordHasher: IPasswordHasherPort,
+    private readonly idGenerator: IIdGeneratorPort,
+    private readonly clock: IClockPort
+  ) {}
+
+  public async Execute(input: ICreateUserInput): Promise<UserEntity> {
+    const email = Email.Create(input.email);
+    const password = PlainPassword.Create(input.password);
+
+    await this.EnsureEmailIsAvailable(email);
+
+    const user = UserEntity.Create({
+      id: this.idGenerator.generate(),
+      name: input.name as string,
+      email,
+      passwordHash: await this.passwordHasher.hash(password),
+      now: this.clock.now(),
+    });
+
+    return this.userRepository.create(user);
   }
 
-  async Execute(userPayloadIn: IUserPayloadIn): Promise<HttpResponse> {
-    const { CreateUser, GetEmail } = new UserEntity(userPayloadIn);
-    const userAlreadyExists = await this.userRepository.findByEmail(GetEmail);
-
-    if (userAlreadyExists) throw new DataAlreadyExists("User");
-
-    const user = CreateUser(userPayloadIn);
-    const createNewUserOnDB = await this.userRepository.create(user);
-
-    if (createNewUserOnDB)
-      return createdResponse({
-        body: createNewUserOnDB,
-      });
-
-    return badRequestResponse(new ResourceWasNotAbleToBeCreated("User"));
+  private async EnsureEmailIsAvailable(email: Email): Promise<void> {
+    if (await this.userRepository.findByEmail(email)) {
+      throw new DataAlreadyExists("Usuário");
+    }
   }
 }

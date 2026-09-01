@@ -1,14 +1,22 @@
-import { Router } from "express";
-import { authControllerMount } from "../../../controllers/mount";
+import { RequestHandler, Router } from "express";
+import { AuthController } from "../controllers";
+import { asyncHandler } from "../middlewares";
 
-export const authRouter = Router();
+export const makeAuthRouter = (
+  controller: AuthController,
+  rateLimiter: RequestHandler
+): Router => {
+  const router = Router();
 
-const authController = authControllerMount();
+  router.post(
+    "/auth/login",
+    rateLimiter,
+    asyncHandler(async (request, response) => {
+      const { statusCode, body } = await controller.Login(request.body);
 
-authRouter.post("/auth/login", async (request, response) => {
-  const loginData = request.body;
+      response.status(statusCode).json(body);
+    })
+  );
 
-  const { statusCode, body } = await authController.Login(loginData);
-
-  return response.status(statusCode).json(body);
-});
+  return router;
+};

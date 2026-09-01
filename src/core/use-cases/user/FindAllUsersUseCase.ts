@@ -1,24 +1,11 @@
-import { ResourceNotFound } from "../../exceptions";
+import { UserEntity } from "../../entities";
 import { IUserRepositoryPort } from "../../ports";
-import {
-  HttpResponse,
-  notFoundResponse,
-  okResponse,
-} from "../../protocols/http-response";
-import { IUseCase } from "../UseCase";
+import { IUseCaseWithoutInput } from "../UseCase";
 
-export class FindAllUsersUseCase implements IUseCase {
-  private userRepository: IUserRepositoryPort;
+export class FindAllUsersUseCase implements IUseCaseWithoutInput<UserEntity[]> {
+  constructor(private readonly userRepository: IUserRepositoryPort) {}
 
-  constructor(userRepository: IUserRepositoryPort) {
-    this.userRepository = userRepository;
-  }
-
-  async Execute(): Promise<HttpResponse> {
-    const users = await this.userRepository.findAll();
-
-    if (!users.length) return notFoundResponse(new ResourceNotFound("Users"));
-
-    return okResponse(users);
+  public async Execute(): Promise<UserEntity[]> {
+    return this.userRepository.findAll();
   }
 }
