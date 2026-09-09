@@ -1,7 +1,7 @@
 {
   "name": "typescript-hexagonal-architecture",
-  "version": "2.0.0",
-  "description": "API de exemplo em TypeScript demonstrando Arquitetura Hexagonal (ports & adapters)",
+  "version": "3.0.0",
+  "description": "API de exemplo em TypeScript demonstrando Arquitetura Hexagonal (ports & adapters) com MySQL, Redis, MongoDB e filas BullMQ",
   "license": "MIT",
   "main": "dist/main.js",
   "engines": {
@@ -9,21 +9,26 @@
   },
   "scripts": {
     "dev": "tsx watch src/main.ts",
+    "dev:worker": "tsx watch src/worker.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
+    "start:worker": "node dist/worker.js",
     "test": "node --import tsx --test \"tests/**/*.test.ts\"",
+    "test:watch": "node --import tsx --test --watch \"tests/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate deploy",
-    "test:watch": "node --import tsx --test --watch \"tests/**/*.test.ts\""
+    "prisma:migrate": "prisma migrate deploy"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",
+    "bullmq": "^6.3.4",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
+    "mongodb": "^7.6.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -33,5 +38,8 @@
     "prisma": "^6.2.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
   }
 }

@@ -10,13 +10,57 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum MembershipRoleType {
+  owner
+  admin
+  member
+}
+
 model Users {
-  id         String @id
+  id         String   @id
   name       String
   email      String   @unique
   password   String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
+  ownedOrganizations Organizations[] @relation("organization_owner")
+  memberships        Memberships[]   @relation("membership_user")
+  sentInvitations    Memberships[]   @relation("membership_inviter")
+
   @@map("users")
+}
+
+model Organizations {
+  id         String   @id
+  name       String
+  slug       String   @unique
+  owner_id   String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  owner   Users         @relation("organization_owner", fields: [owner_id], references: [id])
+  members Memberships[]
+
+  @@index([owner_id])
+  @@map("organizations")
+}
+
+model Memberships {
+  id              String             @id
+  organization_id String
+  user_id         String
+  role            MembershipRoleType @default(member)
+  invited_by      String?
+  created_at      DateTime           @default(now())
+  updated_at      DateTime           @updatedAt
+
+  organization Organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  user         Users         @relation("membership_user", fields: [user_id], references: [id], onDelete: Cascade)
+  inviter      Users?        @relation("membership_inviter", fields: [invited_by], references: [id], onDelete: SetNull)
+
+  @@unique([organization_id, user_id])
+  @@index([user_id])
+  @@index([organization_id, role])
+  @@map("memberships")
 }

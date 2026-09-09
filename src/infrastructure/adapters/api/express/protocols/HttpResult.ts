@@ -9,3 +9,8 @@ export const created = <T>(body: T): HttpResult<T> => ({
   statusCode: 201,
   body,
 });
+
+export const noContent = (): HttpResult<null> => ({
+  statusCode: 204,
+  body: null,
+});

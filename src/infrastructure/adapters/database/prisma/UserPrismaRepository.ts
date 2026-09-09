@@ -22,6 +22,24 @@ export class UserPrismaRepository implements IUserRepositoryPort {
     return rows.map(UserPrismaRepository.ToEntity);
   }
 
+  public async findById(userId: string): Promise<UserEntity | null> {
+    const row = await this.client.users.findUnique({ where: { id: userId } });
+
+    return row ? UserPrismaRepository.ToEntity(row) : null;
+  }
+
+  public async findManyByIds(
+    userIds: readonly string[]
+  ): Promise<UserEntity[]> {
+    if (userIds.length === 0) return [];
+
+    const rows = await this.client.users.findMany({
+      where: { id: { in: [...new Set(userIds)] } },
+    });
+
+    return rows.map(UserPrismaRepository.ToEntity);
+  }
+
   public async findByEmail(email: Email): Promise<UserEntity | null> {
     const row = await this.client.users.findUnique({
       where: { email: email.Value },

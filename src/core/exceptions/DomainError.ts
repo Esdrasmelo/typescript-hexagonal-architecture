@@ -2,7 +2,9 @@ export type DomainErrorCode =
   | "VALIDATION_ERROR"
   | "NOT_FOUND"
   | "CONFLICT"
-  | "UNAUTHORIZED";
+  | "UNAUTHORIZED"
+  | "FORBIDDEN"
+  | "SERVICE_UNAVAILABLE";
 
 export abstract class DomainError extends Error {
   public abstract readonly code: DomainErrorCode;

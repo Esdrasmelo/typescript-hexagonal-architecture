@@ -1,6 +1,9 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Request, RequestHandler, Response } from "express";
 import { InvalidToken, TokenNotProvided } from "../../../../../core/exceptions";
-import { ITokenServicePort } from "../../../../../core/ports";
+import {
+  IRevokedTokenStorePort,
+  ITokenServicePort,
+} from "../../../../../core/ports";
 
 const BEARER_SCHEME = "Bearer";
 
@@ -14,18 +17,32 @@ const readBearerToken = (header?: string): string => {
   return token;
 };
 
-export const makeAuthMiddleware =
-  (tokenService: ITokenServicePort) =>
-  (request: Request, _response: Response, next: NextFunction): void => {
-    try {
-      const payload = tokenService.verify(
-        readBearerToken(request.headers.authorization)
-      );
+export const makeAuthMiddleware = (
+  tokenService: ITokenServicePort,
+  revokedTokenStore: IRevokedTokenStorePort
+): RequestHandler => {
+  const authenticate = async (request: Request): Promise<void> => {
+    const payload = tokenService.verify(
+      readBearerToken(request.headers.authorization)
+    );
 
-      request.user = { id: payload.sub, email: payload.email };
-
-      next();
-    } catch (error) {
-      next(error);
+    if (await revokedTokenStore.isRevoked(payload.id)) {
+      throw new InvalidToken();
     }
+
+    request.user = {
+      id: payload.sub,
+      email: payload.email,
+      tokenId: payload.id,
+      tokenExpiresAt: payload.expiresAt,
+    };
   };
+
+  return (
+    request: Request,
+    _response: Response,
+    next: NextFunction
+  ): void => {
+    authenticate(request).then(() => next(), next);
+  };
+};

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
+import { EventRecorder } from "../../src/core/events";
 import { ResourceNotFound } from "../../src/core/exceptions";
 import {
   CreateUserUseCase,
@@ -7,7 +8,13 @@ import {
   FindUserByEmailUseCase,
 } from "../../src/core/use-cases";
 import { InMemoryUserRepository } from "../support/InMemoryUserRepository";
-import { FakePasswordHasher, FixedClock, SequentialIdGenerator } from "../support/fakes";
+import {
+  FakePasswordHasher,
+  FixedClock,
+  RecordingEventPublisher,
+  SequentialIdGenerator,
+  SilentLogger,
+} from "../support/fakes";
 
 describe("Consulta de usuários", () => {
   let repository: InMemoryUserRepository;
@@ -21,7 +28,13 @@ describe("Consulta de usuários", () => {
       repository,
       new FakePasswordHasher(),
       new SequentialIdGenerator(),
-      new FixedClock()
+      new FixedClock(),
+      new EventRecorder(
+        new RecordingEventPublisher(),
+        new SequentialIdGenerator(),
+        new FixedClock(),
+        new SilentLogger()
+      )
     );
     findAll = new FindAllUsersUseCase(repository);
     findByEmail = new FindUserByEmailUseCase(repository);
@@ -42,6 +55,21 @@ describe("Consulta de usuários", () => {
     await create.Execute({ name: "A", email: "a@example.com", password: "senha12345" });
 
     assert.equal((await findByEmail.Execute("A@EXAMPLE.COM")).Name, "A");
+  });
+
+  it("busca em lote ignora ids desconhecidos", async () => {
+    const user = await create.Execute({
+      name: "A",
+      email: "a@example.com",
+      password: "senha12345",
+    });
+
+    const found = await repository.findManyByIds([user.Id, "inexistente"]);
+
+    assert.deepEqual(
+      found.map((each) => each.Id),
+      [user.Id]
+    );
   });
 
   it("lança ResourceNotFound quando o e-mail não existe", async () => {

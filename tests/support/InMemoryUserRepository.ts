@@ -6,16 +6,32 @@ export class InMemoryUserRepository implements IUserRepositoryPort {
 
   public async findAll(): Promise<UserEntity[]> {
     return [...this.users.values()].sort(
-      (a, b) => a.CreatedAt.getTime() - b.CreatedAt.getTime()
+      (first, second) => first.CreatedAt.getTime() - second.CreatedAt.getTime()
     );
   }
 
+  public async findById(userId: string): Promise<UserEntity | null> {
+    return this.users.get(userId) ?? null;
+  }
+
+  public async findManyByIds(
+    userIds: readonly string[]
+  ): Promise<UserEntity[]> {
+    return userIds.flatMap((userId) => {
+      const user = this.users.get(userId);
+
+      return user ? [user] : [];
+    });
+  }
+
   public async findByEmail(email: Email): Promise<UserEntity | null> {
-    return this.users.get(email.Value) ?? null;
+    return (
+      [...this.users.values()].find((user) => user.Email.Equals(email)) ?? null
+    );
   }
 
   public async create(user: UserEntity): Promise<UserEntity> {
-    this.users.set(user.Email.Value, user);
+    this.users.set(user.Id, user);
 
     return user;
   }

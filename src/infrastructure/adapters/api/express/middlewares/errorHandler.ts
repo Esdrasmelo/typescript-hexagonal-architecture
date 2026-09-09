@@ -1,6 +1,7 @@
-import { NextFunction, Request, Response } from "express";
+import { ErrorRequestHandler, NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { DomainError, isDomainError } from "../../../../../core/exceptions";
+import { ILoggerPort } from "../../../../../core/ports";
 import { toHttpStatus } from "../protocols";
 
 export interface IErrorResponse {
@@ -40,9 +41,7 @@ const respondWithValidationError = (
   response.status(400).json(payload);
 };
 
-const respondWithInternalError = (response: Response, error: unknown): void => {
-  console.error("[erro não tratado]", error);
-
+const respondWithInternalError = (response: Response): void => {
   const payload: IErrorResponse = {
     error: { code: "INTERNAL_ERROR", message: "Erro interno do servidor." },
   };
@@ -50,22 +49,32 @@ const respondWithInternalError = (response: Response, error: unknown): void => {
   response.status(500).json(payload);
 };
 
-export const errorHandler = (
-  error: unknown,
-  _request: Request,
-  response: Response,
-  next: NextFunction
-): void => {
-  if (response.headersSent) return next(error);
+export const makeErrorHandler =
+  (logger: ILoggerPort): ErrorRequestHandler =>
+  (
+    error: unknown,
+    request: Request,
+    response: Response,
+    next: NextFunction
+  ): void => {
+    if (response.headersSent) return next(error);
 
-  if (isDomainError(error)) return respondWithDomainError(response, error);
+    if (isDomainError(error)) return respondWithDomainError(response, error);
 
-  if (error instanceof ZodError) {
-    return respondWithValidationError(response, error);
-  }
+    if (error instanceof ZodError) {
+      return respondWithValidationError(response, error);
+    }
 
-  return respondWithInternalError(response, error);
-};
+    logger.error("Erro não tratado", {
+      method: request.method,
+      path: request.path,
+      requestId: request.requestId ?? null,
+      reason: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : null,
+    });
+
+    return respondWithInternalError(response);
+  };
 
 export const notFoundHandler = (request: Request, response: Response): void => {
   const payload: IErrorResponse = {

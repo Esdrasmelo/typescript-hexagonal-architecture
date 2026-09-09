@@ -2,6 +2,7 @@ import { Email, PlainPassword, UserEntity } from "../../entities";
 import { DataAlreadyExists } from "../../exceptions";
 import {
   IClockPort,
+  IEventRecorderPort,
   IIdGeneratorPort,
   IPasswordHasherPort,
   IUserRepositoryPort,
@@ -12,6 +13,7 @@ export interface ICreateUserInput {
   name: unknown;
   email: unknown;
   password: unknown;
+  requestId?: string | null;
 }
 
 export class CreateUserUseCase
@@ -21,7 +23,8 @@ export class CreateUserUseCase
     private readonly userRepository: IUserRepositoryPort,
     private readonly passwordHasher: IPasswordHasherPort,
     private readonly idGenerator: IIdGeneratorPort,
-    private readonly clock: IClockPort
+    private readonly clock: IClockPort,
+    private readonly eventRecorder: IEventRecorderPort
   ) {}
 
   public async Execute(input: ICreateUserInput): Promise<UserEntity> {
@@ -38,7 +41,17 @@ export class CreateUserUseCase
       now: this.clock.now(),
     });
 
-    return this.userRepository.create(user);
+    const created = await this.userRepository.create(user);
+
+    await this.eventRecorder.record({
+      name: "user.registered",
+      resource: { type: "user", id: created.Id },
+      actorId: created.Id,
+      requestId: input.requestId,
+      metadata: { name: created.Name, email: created.Email.Value },
+    });
+
+    return created;
   }
 
   private async EnsureEmailIsAvailable(email: Email): Promise<void> {
