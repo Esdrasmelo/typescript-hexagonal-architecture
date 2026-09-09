@@ -14,19 +14,77 @@ services:
       timeout: 5s
       retries: 20
 
+  cache:
+    image: redis:7-alpine
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory-policy",
+        "noeviction",
+      ]
+    ports:
+      - "${REDIS_HOST_PORT:-6380}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  documents:
+    image: mongo:7
+    ports:
+      - "${MONGO_HOST_PORT:-27017}:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   api:
     build: .
     depends_on:
       database:
         condition: service_healthy
+      cache:
+        condition: service_healthy
+      documents:
+        condition: service_healthy
     environment:
       DATABASE_URL: mysql://root:root@database:3306/hexagonal
+      REDIS_URL: redis://cache:6379
+      MONGO_URL: mongodb://documents:27017
+      MONGO_DATABASE: hexagonal
       APP_PORT: 3000
       NODE_ENV: production
       JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env ou no ambiente}
     ports:
       - "3000:3000"
+    restart: unless-stopped
     command: sh -c "npx prisma migrate deploy && node dist/main.js"
+
+  worker:
+    build: .
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://root:root@database:3306/hexagonal
+      REDIS_URL: redis://cache:6379
+      MONGO_URL: mongodb://documents:27017
+      MONGO_DATABASE: hexagonal
+      NODE_ENV: production
+      QUEUE_CONCURRENCY: 5
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env ou no ambiente}
+    restart: unless-stopped
+    command: node dist/worker.js
 
 volumes:
   mysql-data:
+  redis-data:
+  mongo-data:
