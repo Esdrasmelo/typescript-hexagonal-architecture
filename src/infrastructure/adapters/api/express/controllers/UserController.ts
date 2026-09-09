@@ -3,8 +3,12 @@ import {
   FindAllUsersUseCase,
   FindUserByEmailUseCase,
 } from "../../../../../core/use-cases";
-import { IUserResponse, toUserResponse, toUserResponseList } from "../presenters/userPresenter";
-import { HttpResult, created, ok } from "../protocols";
+import {
+  IUserResponse,
+  toUserResponse,
+  toUserResponseList,
+} from "../presenters/userPresenter";
+import { created, HttpResult, IActorContext, ok } from "../protocols";
 import { createUserSchema, listUsersQuerySchema } from "../schemas";
 
 export interface IUserUseCases {
@@ -16,9 +20,16 @@ export interface IUserUseCases {
 export class UserController {
   constructor(private readonly useCases: IUserUseCases) {}
 
-  public async CreateUser(body: unknown): Promise<HttpResult<IUserResponse>> {
+  public async CreateUser(
+    body: unknown,
+    context: Pick<IActorContext, "requestId">
+  ): Promise<HttpResult<IUserResponse>> {
     const input = createUserSchema.parse(body);
-    const user = await this.useCases.createUserUseCase.Execute(input);
+
+    const user = await this.useCases.createUserUseCase.Execute({
+      ...input,
+      requestId: context.requestId,
+    });
 
     return created(toUserResponse(user));
   }

@@ -3,8 +3,10 @@ import { DomainErrorCode } from "../../../../../core/exceptions";
 const STATUS_BY_CODE: Record<DomainErrorCode, number> = {
   VALIDATION_ERROR: 400,
   UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
   NOT_FOUND: 404,
   CONFLICT: 409,
+  SERVICE_UNAVAILABLE: 503,
 };
 
 const INTERNAL_ERROR_STATUS = 500;

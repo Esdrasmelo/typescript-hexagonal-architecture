@@ -1,6 +1,7 @@
 import { Email, PlainPassword, UserEntity } from "../../entities";
 import { InvalidCredentials, isDomainError } from "../../exceptions";
 import {
+  IEventRecorderPort,
   IPasswordHasherPort,
   ITokenServicePort,
   IUserRepositoryPort,
@@ -10,10 +11,12 @@ import { IUseCase } from "../UseCase";
 export interface ILoginInput {
   email: unknown;
   password: unknown;
+  requestId?: string | null;
 }
 
 export interface ILoginOutput {
   token: string;
+  expiresAt: Date;
   user: UserEntity;
 }
 
@@ -26,7 +29,8 @@ export class LoginUseCase implements IUseCase<ILoginInput, ILoginOutput> {
   constructor(
     private readonly userRepository: IUserRepositoryPort,
     private readonly passwordHasher: IPasswordHasherPort,
-    private readonly tokenService: ITokenServicePort
+    private readonly tokenService: ITokenServicePort,
+    private readonly eventRecorder: IEventRecorderPort
   ) {}
 
   public async Execute(input: ILoginInput): Promise<ILoginOutput> {
@@ -40,10 +44,20 @@ export class LoginUseCase implements IUseCase<ILoginInput, ILoginOutput> {
 
     if (!user || !isPasswordValid) throw new InvalidCredentials();
 
-    return {
-      token: this.tokenService.sign({ sub: user.Id, email: user.Email.Value }),
-      user,
-    };
+    const issued = this.tokenService.sign({
+      sub: user.Id,
+      email: user.Email.Value,
+    });
+
+    await this.eventRecorder.record({
+      name: "user.logged-in",
+      resource: { type: "user", id: user.Id },
+      actorId: user.Id,
+      requestId: input.requestId,
+      metadata: { tokenId: issued.id },
+    });
+
+    return { token: issued.token, expiresAt: issued.expiresAt, user };
   }
 
   private StoredHashFor(user: UserEntity | null): string {
